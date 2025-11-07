@@ -1,0 +1,192 @@
+#added ref with respect to branches
+name: CI/CD
+
+on:
+  push:
+    branches:
+      - dev
+      - staging
+      - integration
+      - production
+      - blazeup
+
+jobs:
+  build-dev:
+    if: github.ref == 'refs/heads/dev'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: paxanimi-hr-os
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        run: |
+          docker images
+          docker build -t ghcr.io/blazeupai/superset:dev-${{ github.run_id }} -f Dockerfile .
+          docker push ghcr.io/blazeupai/superset:dev-${{ github.run_id }}
+          docker rmi ghcr.io/blazeupai/superset:dev-${{ github.run_id }}
+
+  build-staging:
+    if: github.ref == 'refs/heads/staging'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: paxanimi-hr-os
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        run: |
+          docker images
+          docker build -t ghcr.io/blazeupai/superset:staging-${{ github.run_id }} -f Dockerfile .
+          docker push ghcr.io/blazeupai/superset:staging-${{ github.run_id }}
+          docker rmi ghcr.io/blazeupai/superset:staging-${{ github.run_id }}
+
+  build-integration:
+    if: github.ref == 'refs/heads/integration'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: paxanimi-hr-os
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        run: |
+          docker images
+          docker build -t ghcr.io/blazeupai/superset:integration-${{ github.run_id }} -f Dockerfile .
+          docker push ghcr.io/blazeupai/superset:integration-${{ github.run_id }}
+          docker rmi ghcr.io/blazeupai/superset:integration-${{ github.run_id }}
+
+  build-production:
+    if: github.ref == 'refs/heads/production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: paxanimi-hr-os
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        run: |
+          docker images
+          docker build -t ghcr.io/blazeupai/superset:prod-${{ github.run_id }} -f Dockerfile .
+          docker push ghcr.io/blazeupai/superset:prod-${{ github.run_id }}
+          docker rmi ghcr.io/blazeupai/superset:prod-${{ github.run_id }}
+
+
+  build-blazeup:
+    if: github.ref == 'refs/heads/blazeup'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v2
+
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v1
+        with:
+          registry: ghcr.io
+          username: paxanimi-hr-os
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and push Docker image
+        run: |
+          docker images
+          docker build -t ghcr.io/blazeupai/superset:blazeup-${{ github.run_id }} -f Dockerfile .
+          docker push ghcr.io/blazeupai/superset:blazeup-${{ github.run_id }}
+          docker rmi ghcr.io/blazeupai/superset:blazeup-${{ github.run_id }}
+
+  deploy-dev:
+    if: github.ref == 'refs/heads/dev'
+    needs: build-dev
+    runs-on: dev-master
+    steps:
+      - name: Print Current User
+        run: whoami
+
+      - name: Patch Kubernetes Deployment
+        run: |
+          kubectl get nodes 
+          kubectl patch deployment asset-be-deployment -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"asset-backend\",\"image\":\"ghcr.io/blazeupai/superset:dev-${{ github.run_id }}\"}]}}}}"
+
+  deploy-staging:
+    if: github.ref == 'refs/heads/staging'
+    needs: build-staging
+    runs-on: staging-master
+    steps:
+      - name: Print Current User
+        run: whoami
+
+      - name: Patch Kubernetes Deployment
+        run: |
+          kubectl get nodes 
+          kubectl patch deployment asset-be-deployment -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"asset-backend\",\"image\":\"ghcr.io/blazeupai/superset:staging-${{ github.run_id }}\"}]}}}}"
+
+  deploy-integration:
+    if: github.ref == 'refs/heads/integration'
+    needs: build-integration
+    runs-on: int-master
+    steps:
+      - name: Print Current User
+        run: whoami
+
+      - name: Patch Kubernetes Deployment
+        run: |
+          kubectl get nodes 
+          kubectl patch deployment asset-be-deployment -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"asset-backend\",\"image\":\"ghcr.io/blazeupai/superset:integration-${{ github.run_id }}\"}]}}}}"
+
+  deploy-production:
+    if: github.ref == 'refs/heads/production'
+    needs: build-production
+    runs-on: prod-master
+    steps:
+      - name: Print Current User
+        run: whoami
+
+      - name: Patch Kubernetes Deployment
+        run: |
+          kubectl get nodes
+          kubectl patch deployment asset-be-deployment -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"asset-backend\",\"image\":\"ghcr.io/blazeupai/superset:prod-${{ github.run_id }}\"}]}}}}"
+
+
+  deploy-staging-blazeup:
+    if: github.ref == 'refs/heads/blazeup'
+    needs: build-blazeup
+    runs-on: staging-master
+    steps:
+      - name: Print Current User
+        run: whoami
+
+      - name: Patch Kubernetes Deployment
+        run: |
+          kubectl get nodes 
+          kubectl patch deployment asset-be-deployment -p "{\"spec\":{\"template\":{\"spec\":{\"containers\":[{\"name\":\"asset-backend\",\"image\":\"ghcr.io/blazeupai/superset:blazeup-${{ github.run_id }}\"}]}}}}"
+      
